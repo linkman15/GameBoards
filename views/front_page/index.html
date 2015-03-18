@@ -1,0 +1,11 @@
+{{extend 'plugin_layouts/layouts/Bounderies.html'}}
+<h1>Welcome to Game Boards</h1>
+
+
+<p>
+{{=A('Go to Posts', _class='btn', _href=URL('posts', 'index', args='general'))}}
+{{=A('Go to Game List', _class='btn', _href=URL('game_list', 'index'))}}
+{{=A('List of Users', _class='btn', _href=URL('users', 'index'))}}
+{{=A('List of Groups', _class='btn', _href=URL('groups', 'index'))}}
+{{pass}}
+</p>

@@ -1,0 +1,14 @@
+{{extend 'layout.html'}}
+<h1>Your Profile</h1>
+
+<h1>Username: {{=user.username}}</h1>
+
+<h1>Games: {{for g in user.games:}} {{=A(g.name,  _href=URL('game_list', 'view', args=g.id))}}, {{pass}}</h1>
+<h1>Friends:{{for f in user.friends:}} {{=A(f.username, _href=URL('users', 'user', args=f.username))}}, {{pass}}</h1>
+<h1>Groups:{{for gr in user.groups:}} {{=A(gr.group_name, _href=URL('groups', 'view', args=gr.group_name))}}, {{pass}}</h1>
+
+{{=form}}
+
+{{=A('Front Page', _class='btn', _href=URL('default', 'index'))}}
+{{=A('Users', _class='btn', _href=URL('users', 'index'))}}
+{{=A('Messages', _class='btn', _href=URL('messages', 'index'))}}

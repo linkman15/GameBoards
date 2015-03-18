@@ -1,0 +1,135 @@
+# try something like
+def index():
+    q = db.game_group
+    
+    def generate_view_button(row):
+        # Views the group
+        b = A('View', _class='btn', _href=URL('groups', 'view', args=[row.id]))
+        return b
+    
+    def generate_posts_button(row):
+        #Views posts in the group
+        b = A('View Group Posts', _class='btn', _href=URL('posts', 'index', args=[row.group_name]))
+        return b
+    
+    @auth.requires_login()
+    def generate_join_button(row):
+        #Views posts in the group
+        b = A('Join Group', _class='btn', _href=URL('groups', 'join', args=[row.id]))
+        return b
+    
+    @auth.requires_login()
+    def generate_edit_button(row):
+        username=auth.user.username
+        curr_user = db(db.auth_user.username == username).select().first()
+        b = ''
+        if curr_user == db.game_group(row.id).owner:
+            b = A('Edit', _class='btn', _href=URL('groups', 'edit', args=[row.id]))
+        return b
+    
+    @auth.requires_login()
+    def generate_game_add_button(row):
+        username=auth.user.username
+        curr_user = db(db.auth_user.username == username).select().first()
+        b = ''
+        if curr_user == db.game_group(row.id).owner:
+            b = A('Add Games', _class='btn', _href=URL('groups', 'add_games', args=[row.id]))
+        return b
+    
+    links = [
+        dict(header='', body = generate_view_button),
+        dict(header='', body = generate_posts_button),
+        dict(header='', body = generate_join_button),
+        dict(header='', body = generate_edit_button),
+        dict(header='', body = generate_game_add_button),
+    ]
+    
+    start_idx = 0
+    form = SQLFORM.grid(q, args=request.args[:start_idx],
+                        fields=[db.game_group.group_name],
+        editable=False, deletable=False, details = False, 
+        csv = False,
+        create = False,
+        links=links,
+        paginate=50,
+        )
+    
+    return dict(form=form)
+
+def view():
+    p = db.game_group(request.args(0)) or redirect(URL('groups', 'index'))
+    name = p.group_name
+    form=''
+    form = SQLFORM(db.game_group, fields = ['info'], record=p, readonly=True)
+    #members = p.members
+    #owner = p.owner
+    #mods = p.moderators
+    return dict(form=form, group = p, name=name)
+    #return dict(form=form, group = p, members=members, owner=owner, mods=mods)
+
+@auth.requires_login()
+def add():
+    #games = []
+    form = SQLFORM.factory(Field('group_name', label='Group Name', requires=IS_NOT_EMPTY()),
+                   #Field('games',label='Games', requires = IS_IN_DB(db, db.games, '%(name)s')),
+                   #Field('games',label='Games', default=games, writable=False),
+                   Field('Info', 'text'),
+                   )
+    #games = []
+    #game_form = SQLFORM.factory(Field('add_games',label='Add Game', requires = IS_IN_DB(db, db.games, '%(name)s')), 
+                                #submit_button = T('Add'))
+    #if game_form.process().accepted:
+        #games.extend(game_form.vars.add_games)
+    
+    if form.process().accepted:
+       db.game_group.insert(group_name=form.vars.group_name,
+                            #games=form.vars.games,
+                            owner=auth.user,
+                            members=[auth.user],
+                            #members=auth.user,
+                            info=form.vars.Info,
+                            )
+       redirect(URL('groups', 'index'))
+    return dict(form=form,)
+
+@auth.requires_login()
+def join():
+    group = db.game_group(request.args(0)) or redirect(URL('groups', 'index'))
+    name = group.group_name
+    form = FORM.confirm('Yes',{'No':URL('groups', 'index')})
+    if form.accepted:
+        user = db(db.auth_user.username == auth.user.username).select().first()
+        user.update_record(groups=user.groups+[group])
+        group.update_record(members=group.members+[user])
+        redirect(URL('groups', 'index'))
+    
+    return dict(form=form, name=name)
+
+@auth.requires_login()
+def edit():
+    group = db.game_group(request.args(0)) or redirect(URL('groups', 'index'))
+    username=auth.user.username
+    curr_user = db(db.auth_user.username == username).select().first()
+    if group.owner != curr_user:
+        session.flash = T('Not the group owner.')
+        redirect(URL('groups', 'index'))
+    form = SQLFORM(db.game_group, fields=['info'], record=group)
+    if form.process().accepted:
+        session.flash = T('Updated')
+        redirect(URL('groups', 'view', args=[group.id]))
+    # p.name would contain the name of the poster.
+    return dict(form=form)
+
+@auth.requires_login()
+def add_games():
+    group = db.game_group(request.args(0)) or redirect(URL('groups', 'index'))
+    username=auth.user.username
+    curr_user = db(db.auth_user.username == username).select().first()
+    if group.owner != curr_user:
+        session.flash = T('Not the group owner.')
+        redirect(URL('groups', 'index'))
+    form = SQLFORM.factory(Field('games',label='Game', requires = IS_IN_DB(db, db.games, '%(name)s')),submit_button = T('Add Game'))
+    if form.process().accepted:
+        game=form.vars.games
+        group.update_record(games=group.games+[game])
+    return dict(form=form)

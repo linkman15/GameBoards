@@ -1,0 +1,19 @@
+{{extend 'layout.html'}}
+
+{{=A('Front Page', _class='btn', _href=URL('.', 'front_page'))}}
+
+<h1>
+    {{=message.mess_type}} Post from {{=message.sender}}
+</h1>    
+
+<p>
+    Subject: {{=message.subject}}
+</p>
+
+<p>
+    Message:{{=message.body}}
+</p>
+
+{{=A('Back to Messages', _class='btn', _href=URL('message', 'index'))}}
+
+{{=form}}

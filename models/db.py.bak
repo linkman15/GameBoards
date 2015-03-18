@@ -1,0 +1,185 @@
+# -*- coding: utf-8 -*-
+
+#########################################################################
+## This scaffolding model makes your app work on Google App Engine too
+## File is released under public domain and you can use without limitations
+#########################################################################
+
+## if SSL/HTTPS is properly configured and you want all HTTP requests to
+## be redirected to HTTPS, uncomment the line below:
+# request.requires_https()
+
+if not request.env.web2py_runtime_gae:
+    ## if NOT running on Google App Engine use SQLite or other DB
+    db = DAL('sqlite://storage.sqlite',pool_size=1,check_reserved=['all'])
+else:
+    ## connect to Google BigTable (optional 'google:datastore://namespace')
+    db = DAL('google:datastore+ndb')
+    ## store sessions and tickets there
+    session.connect(request, response, db=db)
+    ## or store session in Memcache, Redis, etc.
+    ## from gluon.contrib.memdb import MEMDB
+    ## from google.appengine.api.memcache import Client
+    ## session.connect(request, response, db = MEMDB(Client()))
+
+## by default give a view/generic.extension to all actions from localhost
+## none otherwise. a pattern can be 'controller/function.extension'
+response.generic_patterns = ['*'] if request.is_local else []
+
+## (optional) optimize handling of static files
+# response.optimize_css = 'concat,minify,inline'
+# response.optimize_js = 'concat,minify,inline'
+## (optional) static assets folder versioning
+# response.static_version = '0.0.0'
+#########################################################################
+## Here is sample code if you need for
+## - email capabilities
+## - authentication (registration, login, logout, ... )
+## - authorization (role based authorization)
+## - services (xml, csv, json, xmlrpc, jsonrpc, amf, rss)
+## - old style crud actions
+## (more options discussed in gluon/tools.py)
+#########################################################################
+
+from gluon.tools import Auth, Service, PluginManager
+
+db = DAL(lazy_tables=True)
+
+auth = Auth(db)
+service = Service()
+plugins = PluginManager()
+
+auth.settings.extra_fields['auth_user']= [
+    #Field('username'),
+    Field('friends', 'list:reference auth_user', default=[]),
+    Field('games', 'list:reference games', default=[]),
+    Field('groups','list:reference game_group', default=[]),
+    Field('info', 'text'),]
+
+## create all tables needed by auth if not custom tables
+auth.define_tables(username=True, signature=False)
+
+## configure email
+mail = auth.settings.mailer
+mail.settings.server = 'logging' if request.is_local else 'smtp.gmail.com:587'
+mail.settings.sender = 'you@gmail.com'
+mail.settings.login = 'username:password'
+
+## configure auth policy
+auth.settings.registration_requires_verification = False
+auth.settings.registration_requires_approval = False
+auth.settings.reset_password_requires_verification = True
+
+## if you need to use OpenID, Facebook, MySpace, Twitter, Linkedin, etc.
+## register with janrain.com, write your domain:api_key in private/janrain.key
+from gluon.contrib.login_methods.janrain_account import use_janrain
+use_janrain(auth, filename='private/janrain.key')
+
+#########################################################################
+## Define your tables below (or better in another model file) for example
+##
+## >>> db.define_table('mytable',Field('myfield','string'))
+##
+## Fields can be 'string','text','password','integer','double','boolean'
+##       'date','time','datetime','blob','upload', 'reference TABLENAME'
+## There is an implicit 'id integer autoincrement' field
+## Consult manual for more options, validators, etc.
+##
+## More API examples for controllers:
+##
+## >>> db.mytable.insert(myfield='value')
+## >>> rows=db(db.mytable.myfield=='value').select(db.mytable.ALL)
+## >>> for row in rows: print row.id, row.myfield
+#########################################################################
+
+#db = DAL(lazy_tables=True)
+
+GAME_TYPE = ['Action', 'MMORPG', 'RTS', 'First Person Shooter', 'Racing', 'Fighting', 'Other']
+
+db.define_table('games',
+                Field('name'),
+                Field('game_type'),
+                Field('info', 'text'),
+                format ='%(name)s',
+                )
+
+
+POST_CATEGORY = ['Looking for people', 'Create Game', 'Event', 'Misc',]
+
+db.define_table('gameboard',
+                Field('poster' ),
+                Field('subject'),
+                #Field('category'),
+                Field('board_type'),
+                #Field('date_posted', 'datetime'),
+                Field('game', 'reference games'),
+                #Field('event_time', 'datetime'),
+                Field('body', 'text'),
+                )
+
+
+
+db.define_table('game_group',
+                Field('group_name'),
+                Field('members', 'list:reference auth_user', default=[]),
+                #Field('member_id', 'reference auth_user'),
+                Field('owner', 'reference auth_user'),
+                #Field('owner_id', 'reference auth_user'),
+                Field('moderators', 'list:reference auth_user', default=[]),
+                #Field('mod_id', 'reference auth_user'),
+                Field('games', 'list:reference games', default=[]),
+                #Field('group_board', 'reference gameboard'),
+                Field('info', 'text'),
+                format ='%(group_name)s'
+                )
+
+MESSAGE_TYPE = ['Group', 'Friend Request', 'Personal', 'Post',]
+
+db.define_table('messages',
+                Field('sender'),
+                Field('reciever'),
+                Field('subject'),
+                Field('mess_type'),
+                Field('body', 'text'),
+                )
+
+
+db.gameboard.id.readable = db.game_group.id.readable = db.games.id.readable = db.messages.id.readable = False
+
+db.games.game_type.requires = IS_IN_SET(GAME_TYPE, zero=None)
+db.games.game_type.default = 'Other'
+db.games.info.label = 'Game Information'
+db.games.name.label = 'Game Name'
+db.games.format ='%(name)'
+
+#db.gameboard.category.requires = IS_IN_SET(POST_CATEGORY, zero=None)
+#db.gameboard.category.default = 'Misc'
+db.gameboard.game.requires = IS_IN_DB(db, db.games, multiple=True)
+#db.gameboard.poster.default = auth.user.username
+#db.gameboard.poster.writable = False
+db.gameboard.board_type.readable = db.gameboard.board_type.writable = False
+
+db.game_group.info.label = 'Group Info'
+db.game_group.group_name.label = 'Group Name'
+db.game_group.group_name.requires=IS_NOT_EMPTY()
+db.game_group.members.writeable = db.game_group.members.readable = False
+db.game_group.owner.writeable = False
+db.game_group.moderators.writeable = False
+db.game_group.games.writeable = False
+db.game_group.games.requires = IS_IN_DB(db, db.games, multiple=True)
+db.game_group.members.requires = db.game_group.moderators.requires = db.game_group.owner.requires = IS_IN_DB(db, db.auth_user, multiple=True)
+
+db.messages.body.label = 'Message'
+db.messages.mess_type.requires = IS_IN_SET(MESSAGE_TYPE)
+db.messages.mess_type.readable = False
+
+db.auth_user.first_name.readable = db.auth_user.last_name.readable = db.auth_user.first_name.writable = db.auth_user.last_name.writable = False
+db.auth_user.first_name.default = db.auth_user.username
+db.auth_user.friends.readable = db.auth_user.friends.writable = False
+db.auth_user.groups.readable = db.auth_user.groups.writable = False
+db.auth_user.groups.requires = IS_IN_DB(db, db.game_group, multiple=True)
+db.auth_user.info.readable = db.auth_user.info.writable = False
+db.auth_user.games.readable = db.auth_user.games.writable = False
+
+## after defining tables, uncomment below to enable auditing
+auth.enable_record_versioning(db)

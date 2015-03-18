@@ -1,0 +1,5 @@
+{{extend 'layout.html'}}
+<h1>Your Profile</h1>
+{{=form}}
+
+{{=info_form}}

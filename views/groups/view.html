@@ -1,0 +1,12 @@
+{{left_sidebar_enabled,right_sidebar_enabled=False,('message' in globals())}}
+{{extend 'layout.html'}}
+
+<h1>{{=name}}</h1>
+
+
+<h1>Members:{{for m in group.members:}}{{=A(m.username, _href=URL('users', 'user', args=m.username))}}, {{pass}}</h1>
+<h1>Games:{{for g in group.games:}}{{=A(g.name, _href=URL('game_list', 'view', args=g.id))}}, {{pass}}</h1>
+<h1>About: {{=group.info}}</h1>
+
+
+{{=A('Back', _class='btn', _href=URL('groups', 'index'))}}

@@ -1,0 +1,9 @@
+{{left_sidebar_enabled,right_sidebar_enabled=False,('message' in globals())}}
+{{extend 'layout.html'}}
+
+<h1>Add a new group</h1>
+{{=game_form}}
+
+{{=form}}
+
+{{=A('Cancel', _class='btn', _href=URL('groups', 'index'))}}
